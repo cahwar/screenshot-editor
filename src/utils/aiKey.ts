@@ -1,25 +1,42 @@
-const KEY = "ss-editor-gemini-key";
+import { ProviderId } from "./ai";
 
-export function getApiKey(): string {
+const keyStorageKey = (provider: ProviderId) => `ss-editor-aikey-${provider}`;
+const ACTIVE_KEY = "ss-editor-ai-provider";
+
+export function getApiKey(provider: ProviderId): string {
   try {
-    return localStorage.getItem(KEY) ?? "";
+    return localStorage.getItem(keyStorageKey(provider)) ?? "";
   } catch {
     return "";
   }
 }
 
-export function setApiKey(k: string) {
+export function setApiKey(provider: ProviderId, k: string) {
   try {
-    localStorage.setItem(KEY, k.trim());
+    localStorage.setItem(keyStorageKey(provider), k.trim());
   } catch {}
 }
 
-export function clearApiKey() {
+export function clearApiKey(provider: ProviderId) {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(keyStorageKey(provider));
   } catch {}
 }
 
-export function hasApiKey(): boolean {
-  return getApiKey().length > 0;
+export function hasApiKey(provider: ProviderId): boolean {
+  return getApiKey(provider).length > 0;
+}
+
+export function getActiveProvider(): ProviderId {
+  try {
+    const v = localStorage.getItem(ACTIVE_KEY);
+    if (v === "gemini" || v === "openai") return v;
+  } catch {}
+  return "gemini";
+}
+
+export function setActiveProvider(provider: ProviderId) {
+  try {
+    localStorage.setItem(ACTIVE_KEY, provider);
+  } catch {}
 }

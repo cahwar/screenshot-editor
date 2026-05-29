@@ -882,6 +882,39 @@ body, html, #root {
   letter-spacing: 0.05em;
 }
 
+.ai-provider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-provider-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ai-select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ai-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ai-blurb {
+  margin-top: -4px;
+}
+
 .ai-key-btn {
   margin-left: auto;
   background: transparent;

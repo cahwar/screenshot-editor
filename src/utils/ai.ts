@@ -1,13 +1,28 @@
-// Gemini 2.5 Flash Image ("Nano Banana") — instruction-based image editing.
-// Model IDs shift occasionally; if requests start 404-ing, update this.
-const MODEL = "gemini-2.5-flash-image";
+// Multi-provider image editing. Each provider takes an image + free-form
+// instruction and returns an edited image (data URL). BYOK, browser-direct.
 
-const endpoint = (model: string, key: string) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
-    key
-  )}`;
+export type ProviderId = "gemini" | "openai";
 
-function dataUrlToInline(dataUrl: string): { mimeType: string; data: string } {
+export type AiProvider = {
+  id: ProviderId;
+  label: string;
+  /** Short note shown under the selector. */
+  blurb: string;
+  /** Where the user gets a key. */
+  keyUrl: string;
+  /** Placeholder for the key input. */
+  keyPlaceholder: string;
+  /** Edit an image by instruction. Returns a data URL. Throws on failure. */
+  editImage: (
+    imageDataUrl: string,
+    prompt: string,
+    apiKey: string
+  ) => Promise<string>;
+};
+
+// ───────── helpers ─────────
+
+function splitDataUrl(dataUrl: string): { mimeType: string; data: string } {
   const comma = dataUrl.indexOf(",");
   const meta = dataUrl.slice(0, comma);
   const data = dataUrl.slice(comma + 1);
@@ -15,43 +30,46 @@ function dataUrlToInline(dataUrl: string): { mimeType: string; data: string } {
   return { mimeType, data };
 }
 
-export type GeminiEditResult = {
-  dataUrl: string;
-};
+function dataUrlToBlob(dataUrl: string): Blob {
+  const { mimeType, data } = splitDataUrl(dataUrl);
+  const bin = atob(data);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mimeType });
+}
 
-/**
- * Send an image + free-form instruction to Gemini and get back an edited image.
- * Throws Error with a human-readable message on failure (including model refusals).
- */
-export async function editImageWithGemini(
+// ───────── Gemini 2.5 Flash Image ("Nano Banana") ─────────
+
+const GEMINI_MODEL = "gemini-2.5-flash-image";
+
+async function editImageWithGemini(
   imageDataUrl: string,
   prompt: string,
   apiKey: string
-): Promise<GeminiEditResult> {
-  const { mimeType, data } = dataUrlToInline(imageDataUrl);
-
+): Promise<string> {
+  const { mimeType, data } = splitDataUrl(imageDataUrl);
   const body = {
     contents: [
       {
         role: "user",
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType, data } },
-        ],
+        parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data } }],
       },
     ],
-    generationConfig: {
-      responseModalities: ["IMAGE"],
-    },
+    generationConfig: { responseModalities: ["IMAGE"] },
   };
 
   let res: Response;
   try {
-    res = await fetch(endpoint(MODEL, apiKey), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
+        apiKey
+      )}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
   } catch (e) {
     throw new Error(
       "Не удалось связаться с Gemini API (сеть/CORS). " + (e as Error).message
@@ -64,35 +82,99 @@ export async function editImageWithGemini(
       const j = await res.json();
       msg = j?.error?.message ?? msg;
     } catch {}
-    if (res.status === 400 && /API key/i.test(msg)) {
-      msg = "Неверный API-ключ. " + msg;
-    }
+    if (res.status === 400 && /API key/i.test(msg)) msg = "Неверный API-ключ. " + msg;
     throw new Error(msg);
   }
 
   const json = await res.json();
   const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
-
   for (const p of parts) {
     const inline = p.inlineData ?? p.inline_data;
     if (inline?.data) {
       const mt = inline.mimeType ?? inline.mime_type ?? "image/png";
-      return { dataUrl: `data:${mt};base64,${inline.data}` };
+      return `data:${mt};base64,${inline.data}`;
     }
   }
-
-  const text = parts
-    .map((p) => p.text)
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-  const blockReason = json?.promptFeedback?.blockReason;
-  if (blockReason) {
-    throw new Error(`Запрос отклонён модерацией (${blockReason}).`);
-  }
+  const text = parts.map((p) => p.text).filter(Boolean).join(" ").trim();
+  const block = json?.promptFeedback?.blockReason;
+  if (block) throw new Error(`Запрос отклонён модерацией (${block}).`);
   throw new Error(
     text || "Модель не вернула изображение. Попробуй переформулировать запрос."
   );
 }
 
-export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
+// ───────── OpenAI gpt-image-1 ─────────
+
+const OPENAI_MODEL = "gpt-image-1";
+
+async function editImageWithOpenAI(
+  imageDataUrl: string,
+  prompt: string,
+  apiKey: string
+): Promise<string> {
+  const blob = dataUrlToBlob(imageDataUrl);
+  const form = new FormData();
+  form.append("model", OPENAI_MODEL);
+  form.append(
+    "image",
+    new File([blob], "image.png", { type: blob.type || "image/png" })
+  );
+  form.append("prompt", prompt);
+  form.append("size", "auto");
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.openai.com/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+  } catch (e) {
+    throw new Error(
+      "Не удалось связаться с OpenAI API (сеть/CORS). " + (e as Error).message
+    );
+  }
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      msg = j?.error?.message ?? msg;
+    } catch {}
+    if (res.status === 401) msg = "Неверный API-ключ OpenAI. " + msg;
+    throw new Error(msg);
+  }
+
+  const json = await res.json();
+  const b64 = json?.data?.[0]?.b64_json;
+  if (!b64)
+    throw new Error("Модель не вернула изображение. Попробуй переформулировать запрос.");
+  return `data:image/png;base64,${b64}`;
+}
+
+// ───────── registry ─────────
+
+export const PROVIDERS: Record<ProviderId, AiProvider> = {
+  gemini: {
+    id: "gemini",
+    label: "Gemini 2.5 Flash Image",
+    blurb: "Google · сильна в сохранении персонажа, дешёвая и быстрая",
+    keyUrl: "https://aistudio.google.com/apikey",
+    keyPlaceholder: "AIza…",
+    editImage: editImageWithGemini,
+  },
+  openai: {
+    id: "openai",
+    label: "ChatGPT (gpt-image-1)",
+    blurb: "OpenAI · качественные правки, размер кадра подбирается автоматически",
+    keyUrl: "https://platform.openai.com/api-keys",
+    keyPlaceholder: "sk-…",
+    editImage: editImageWithOpenAI,
+  },
+};
+
+export const PROVIDER_LIST: AiProvider[] = [PROVIDERS.gemini, PROVIDERS.openai];
+
+export function getProvider(id: ProviderId): AiProvider {
+  return PROVIDERS[id] ?? PROVIDERS.gemini;
+}

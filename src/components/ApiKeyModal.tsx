@@ -1,41 +1,41 @@
 import { useState } from "react";
-import { GEMINI_KEY_URL } from "../utils/ai";
+import { AiProvider } from "../utils/ai";
 import { getApiKey, setApiKey, clearApiKey } from "../utils/aiKey";
 
 type Props = {
+  provider: AiProvider;
   onClose: () => void;
   onSaved: (key: string) => void;
 };
 
-export function ApiKeyModal({ onClose, onSaved }: Props) {
-  const [value, setValue] = useState(getApiKey());
+export function ApiKeyModal({ provider, onClose, onSaved }: Props) {
+  const [value, setValue] = useState(getApiKey(provider.id));
 
   const save = () => {
     const k = value.trim();
     if (!k) return;
-    setApiKey(k);
+    setApiKey(provider.id, k);
     onSaved(k);
   };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Ключ Gemini API</h3>
+        <h3>Ключ {provider.label}</h3>
         <p className="hint">
-          Правки выполняет Gemini 2.5 Flash Image. Нужен твой личный API-ключ —
-          он хранится только в этом браузере и отправляется напрямую в Google,
-          минуя любые серверы.
+          Нужен твой личный API-ключ — он хранится только в этом браузере и
+          отправляется напрямую к провайдеру, минуя любые серверы.
         </p>
         <p className="hint">
-          Получить ключ бесплатно:{" "}
-          <a href={GEMINI_KEY_URL} target="_blank" rel="noreferrer">
-            aistudio.google.com/apikey
+          Получить ключ:{" "}
+          <a href={provider.keyUrl} target="_blank" rel="noreferrer">
+            {provider.keyUrl.replace(/^https?:\/\//, "")}
           </a>
         </p>
         <input
           className="key-input"
           type="password"
-          placeholder="AIza…"
+          placeholder={provider.keyPlaceholder}
           value={value}
           autoFocus
           onChange={(e) => setValue(e.target.value)}
@@ -44,11 +44,11 @@ export function ApiKeyModal({ onClose, onSaved }: Props) {
           }}
         />
         <div className="modal-actions">
-          {getApiKey() && (
+          {getApiKey(provider.id) && (
             <button
               className="btn small danger"
               onClick={() => {
-                clearApiKey();
+                clearApiKey(provider.id);
                 setValue("");
                 onSaved("");
               }}

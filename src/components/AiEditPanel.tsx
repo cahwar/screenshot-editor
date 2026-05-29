@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { Layer } from "../types";
 import { useProject } from "../store";
-import { editImageWithGemini } from "../utils/ai";
-import { getApiKey, hasApiKey } from "../utils/aiKey";
+import { getProvider, PROVIDER_LIST, ProviderId } from "../utils/ai";
+import {
+  getActiveProvider,
+  getApiKey,
+  hasApiKey,
+  setActiveProvider,
+} from "../utils/aiKey";
 import { loadImage } from "../utils/image";
 import { ApiKeyModal } from "./ApiKeyModal";
 
@@ -17,25 +22,37 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
   const replaceBackgroundImage = useProject((s) => s.replaceBackgroundImage);
   const undoBackground = useProject((s) => s.undoBackground);
 
+  const [providerId, setProviderId] = useState<ProviderId>(getActiveProvider());
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
 
+  const provider = getProvider(providerId);
   const bg = layer.background;
   if (!bg) return null;
+
+  const pickProvider = (id: ProviderId) => {
+    setProviderId(id);
+    setActiveProvider(id);
+    setError(null);
+  };
 
   const run = async () => {
     const text = prompt.trim();
     if (!text) return;
-    if (!hasApiKey()) {
+    if (!hasApiKey(providerId)) {
       setShowKeyModal(true);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const { dataUrl } = await editImageWithGemini(bg.src, text, getApiKey());
+      const dataUrl = await provider.editImage(
+        bg.src,
+        text,
+        getApiKey(providerId)
+      );
       const img = await loadImage(dataUrl);
       replaceBackgroundImage(layer.id, {
         src: dataUrl,
@@ -59,9 +76,27 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
           onClick={() => setShowKeyModal(true)}
           title="Управление API-ключом"
         >
-          {hasApiKey() ? "ключ ✓" : "указать ключ"}
+          {hasApiKey(providerId) ? "ключ ✓" : "указать ключ"}
         </button>
       </div>
+
+      <div className="ai-provider-row">
+        <label className="ai-provider-label">Модель</label>
+        <select
+          className="ai-select"
+          value={providerId}
+          disabled={busy}
+          onChange={(e) => pickProvider(e.target.value as ProviderId)}
+        >
+          {PROVIDER_LIST.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+              {hasApiKey(p.id) ? " ✓" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="hint ai-blurb">{provider.blurb}</p>
 
       <textarea
         className="ai-prompt"
@@ -113,6 +148,7 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
 
       {showKeyModal && (
         <ApiKeyModal
+          provider={provider}
           onClose={() => setShowKeyModal(false)}
           onSaved={() => setShowKeyModal(false)}
         />
