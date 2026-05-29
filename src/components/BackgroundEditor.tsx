@@ -3,6 +3,7 @@ import { Layer } from "../types";
 import { useProject } from "../store";
 import { BackgroundCropper } from "./BackgroundCropper";
 import { FileDrop } from "./FileDrop";
+import { AiEditPanel } from "./AiEditPanel";
 import { loadImage, readFileAsDataURL } from "../utils/image";
 
 const SIZE_PRESETS = [
@@ -133,7 +134,10 @@ export function BackgroundEditor({ layer }: { layer: Layer }) {
           onFiles={handleBgFiles}
         />
       ) : (
-        <BackgroundCropper layer={layer} />
+        <>
+          <BackgroundCropper layer={layer} />
+          <AiEditPanel layer={layer} />
+        </>
       )}
     </div>
   );

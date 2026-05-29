@@ -17,6 +17,7 @@ const makeLayer = (index: number): Layer => ({
   id: uid(),
   name: `Кадр ${index}`,
   background: null,
+  bgHistory: [],
   targetWidth: prefs.targetWidth,
   targetHeight: prefs.targetHeight,
   textScreens: [],
@@ -44,6 +45,12 @@ type Store = Project & {
   ) => void;
   setBackgroundCrop: (layerId: string, crop: Rect) => void;
   setTargetSize: (layerId: string, w: number, h: number) => void;
+
+  replaceBackgroundImage: (
+    layerId: string,
+    bg: { src: string; width: number; height: number }
+  ) => void;
+  undoBackground: (layerId: string) => void;
 
   addTextScreens: (
     layerId: string,
@@ -114,6 +121,37 @@ export const useProject = create<Store>((set) => ({
         return {
           ...l,
           background: { ...bg, crop },
+          bgHistory: [],
+        };
+      }),
+    })),
+
+  replaceBackgroundImage: (layerId, bg) =>
+    set((s) => ({
+      layers: s.layers.map((l) => {
+        if (l.id !== layerId) return l;
+        const aspect = l.targetWidth / l.targetHeight;
+        const crop = fitCropToImage(bg.width, bg.height, aspect);
+        const history = l.background
+          ? [...l.bgHistory, l.background]
+          : l.bgHistory;
+        return {
+          ...l,
+          background: { ...bg, crop },
+          bgHistory: history.slice(-10),
+        };
+      }),
+    })),
+
+  undoBackground: (layerId) =>
+    set((s) => ({
+      layers: s.layers.map((l) => {
+        if (l.id !== layerId || l.bgHistory.length === 0) return l;
+        const prev = l.bgHistory[l.bgHistory.length - 1];
+        return {
+          ...l,
+          background: prev,
+          bgHistory: l.bgHistory.slice(0, -1),
         };
       }),
     })),

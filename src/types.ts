@@ -43,6 +43,7 @@ export type Layer = {
   id: string;
   name: string;
   background: BackgroundImage | null;
+  bgHistory: BackgroundImage[];
   targetWidth: number;
   targetHeight: number;
   textScreens: TextScreen[];
