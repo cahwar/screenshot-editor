@@ -911,6 +911,22 @@ body, html, #root {
   border-color: var(--accent);
 }
 
+.ai-model-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.ai-model-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .ai-blurb {
   margin-top: -4px;
 }

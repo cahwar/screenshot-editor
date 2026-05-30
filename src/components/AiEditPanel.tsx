@@ -5,8 +5,10 @@ import { getProvider, PROVIDER_LIST, ProviderId } from "../utils/ai";
 import {
   getActiveProvider,
   getApiKey,
+  getModelOverride,
   hasApiKey,
   setActiveProvider,
+  setModelOverride,
 } from "../utils/aiKey";
 import { loadImage } from "../utils/image";
 import { ApiKeyModal } from "./ApiKeyModal";
@@ -23,6 +25,11 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
   const undoBackground = useProject((s) => s.undoBackground);
 
   const [providerId, setProviderId] = useState<ProviderId>(getActiveProvider());
+  const [model, setModel] = useState(
+    () =>
+      getModelOverride(getActiveProvider()) ||
+      getProvider(getActiveProvider()).defaultModel
+  );
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +42,13 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
   const pickProvider = (id: ProviderId) => {
     setProviderId(id);
     setActiveProvider(id);
+    setModel(getModelOverride(id) || getProvider(id).defaultModel);
     setError(null);
+  };
+
+  const changeModel = (value: string) => {
+    setModel(value);
+    setModelOverride(providerId, value);
   };
 
   const run = async () => {
@@ -51,7 +64,8 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
       const dataUrl = await provider.editImage(
         bg.src,
         text,
-        getApiKey(providerId)
+        getApiKey(providerId),
+        (model.trim() || provider.defaultModel)
       );
       const img = await loadImage(dataUrl);
       replaceBackgroundImage(layer.id, {
@@ -95,6 +109,18 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
             </option>
           ))}
         </select>
+      </div>
+      <div className="ai-provider-row">
+        <label className="ai-provider-label">Модель id</label>
+        <input
+          className="ai-model-input"
+          type="text"
+          value={model}
+          disabled={busy}
+          placeholder={provider.defaultModel}
+          onChange={(e) => changeModel(e.target.value)}
+          spellCheck={false}
+        />
       </div>
       <p className="hint ai-blurb">{provider.blurb}</p>
 

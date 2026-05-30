@@ -27,6 +27,25 @@ export function hasApiKey(provider: ProviderId): boolean {
   return getApiKey(provider).length > 0;
 }
 
+const modelStorageKey = (provider: ProviderId) =>
+  `ss-editor-aimodel-${provider}`;
+
+export function getModelOverride(provider: ProviderId): string {
+  try {
+    return localStorage.getItem(modelStorageKey(provider)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setModelOverride(provider: ProviderId, model: string) {
+  try {
+    const v = model.trim();
+    if (v) localStorage.setItem(modelStorageKey(provider), v);
+    else localStorage.removeItem(modelStorageKey(provider));
+  } catch {}
+}
+
 export function getActiveProvider(): ProviderId {
   try {
     const v = localStorage.getItem(ACTIVE_KEY);

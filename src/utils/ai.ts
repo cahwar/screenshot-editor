@@ -12,11 +12,14 @@ export type AiProvider = {
   keyUrl: string;
   /** Placeholder for the key input. */
   keyPlaceholder: string;
+  /** Default model id (user can override in the UI). */
+  defaultModel: string;
   /** Edit an image by instruction. Returns a data URL. Throws on failure. */
   editImage: (
     imageDataUrl: string,
     prompt: string,
-    apiKey: string
+    apiKey: string,
+    model: string
   ) => Promise<string>;
 };
 
@@ -40,12 +43,11 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 // ───────── Gemini 2.5 Flash Image ("Nano Banana") ─────────
 
-const GEMINI_MODEL = "gemini-2.5-flash-image";
-
 async function editImageWithGemini(
   imageDataUrl: string,
   prompt: string,
-  apiKey: string
+  apiKey: string,
+  model: string
 ): Promise<string> {
   const { mimeType, data } = splitDataUrl(imageDataUrl);
   const body = {
@@ -61,7 +63,7 @@ async function editImageWithGemini(
   let res: Response;
   try {
     res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
         apiKey
       )}`,
       {
@@ -103,18 +105,17 @@ async function editImageWithGemini(
   );
 }
 
-// ───────── OpenAI gpt-image-1 ─────────
-
-const OPENAI_MODEL = "gpt-image-1";
+// ───────── OpenAI image models (gpt-image-*) ─────────
 
 async function editImageWithOpenAI(
   imageDataUrl: string,
   prompt: string,
-  apiKey: string
+  apiKey: string,
+  model: string
 ): Promise<string> {
   const blob = dataUrlToBlob(imageDataUrl);
   const form = new FormData();
-  form.append("model", OPENAI_MODEL);
+  form.append("model", model);
   form.append(
     "image",
     new File([blob], "image.png", { type: blob.type || "image/png" })
@@ -157,18 +158,20 @@ async function editImageWithOpenAI(
 export const PROVIDERS: Record<ProviderId, AiProvider> = {
   gemini: {
     id: "gemini",
-    label: "Gemini 2.5 Flash Image",
+    label: "Gemini Flash Image",
     blurb: "Google · сильна в сохранении персонажа, дешёвая и быстрая",
     keyUrl: "https://aistudio.google.com/apikey",
     keyPlaceholder: "AIza…",
+    defaultModel: "gemini-2.5-flash-image",
     editImage: editImageWithGemini,
   },
   openai: {
     id: "openai",
-    label: "ChatGPT (gpt-image-1)",
+    label: "ChatGPT (gpt-image)",
     blurb: "OpenAI · качественные правки, размер кадра подбирается автоматически",
     keyUrl: "https://platform.openai.com/api-keys",
     keyPlaceholder: "sk-…",
+    defaultModel: "gpt-image-2",
     editImage: editImageWithOpenAI,
   },
 };
