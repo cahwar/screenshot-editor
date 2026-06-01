@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Layer } from "../types";
 import { useProject } from "../store";
+import { SETTINGS_SYNCED_EVENT } from "../auth/cloudSync";
 import { getProvider, PROVIDER_LIST, ProviderId } from "../utils/ai";
 import {
   getActiveProvider,
@@ -34,6 +35,17 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
+
+  // Re-read provider/model after a cloud pull (sign-in synced new values).
+  useEffect(() => {
+    const onSync = () => {
+      const active = getActiveProvider();
+      setProviderId(active);
+      setModel(getModelOverride(active) || getProvider(active).defaultModel);
+    };
+    window.addEventListener(SETTINGS_SYNCED_EVENT, onSync);
+    return () => window.removeEventListener(SETTINGS_SYNCED_EVENT, onSync);
+  }, []);
 
   const provider = getProvider(providerId);
   const bg = layer.background;

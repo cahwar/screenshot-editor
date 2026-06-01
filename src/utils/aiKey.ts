@@ -1,4 +1,5 @@
 import { ProviderId } from "./ai";
+import { scheduleCloudPush } from "../auth/cloudSync";
 
 const keyStorageKey = (provider: ProviderId) => `ss-editor-aikey-${provider}`;
 const ACTIVE_KEY = "ss-editor-ai-provider";
@@ -15,12 +16,14 @@ export function setApiKey(provider: ProviderId, k: string) {
   try {
     localStorage.setItem(keyStorageKey(provider), k.trim());
   } catch {}
+  scheduleCloudPush();
 }
 
 export function clearApiKey(provider: ProviderId) {
   try {
     localStorage.removeItem(keyStorageKey(provider));
   } catch {}
+  scheduleCloudPush();
 }
 
 export function hasApiKey(provider: ProviderId): boolean {
@@ -44,6 +47,7 @@ export function setModelOverride(provider: ProviderId, model: string) {
     if (v) localStorage.setItem(modelStorageKey(provider), v);
     else localStorage.removeItem(modelStorageKey(provider));
   } catch {}
+  scheduleCloudPush();
 }
 
 export function getActiveProvider(): ProviderId {
@@ -58,4 +62,5 @@ export function setActiveProvider(provider: ProviderId) {
   try {
     localStorage.setItem(ACTIVE_KEY, provider);
   } catch {}
+  scheduleCloudPush();
 }

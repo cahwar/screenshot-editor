@@ -4,6 +4,7 @@ import { FramesStrip } from "./components/FramesStrip";
 import { AssetSidebar } from "./components/AssetSidebar";
 import { AssetEditor } from "./components/AssetEditor";
 import { exportProjectZip, downloadBlob } from "./utils/export";
+import { AuthButton } from "./components/AuthButton";
 
 export function App() {
   const layers = useProject((s) => s.layers);
@@ -35,14 +36,17 @@ export function App() {
         <h1>
           SS Editor <span className="muted">— редактор скриншот-ситуаций</span>
         </h1>
-        <button
-          className="btn"
-          onClick={handleExport}
-          disabled={!canExport || exporting}
-        >
-          {exporting && <span className="spinner" />}
-          {exporting ? "Сборка архива…" : "Экспорт ZIP"}
-        </button>
+        <div className="header-actions">
+          <AuthButton />
+          <button
+            className="btn"
+            onClick={handleExport}
+            disabled={!canExport || exporting}
+          >
+            {exporting && <span className="spinner" />}
+            {exporting ? "Сборка архива…" : "Экспорт ZIP"}
+          </button>
+        </div>
       </header>
 
       <FramesStrip />

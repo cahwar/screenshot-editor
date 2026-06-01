@@ -33,6 +33,17 @@ const persistFromLayer = (l: Layer) => {
   savePrefs(prefs);
 };
 
+// After a cloud pull (sign-in), refresh the in-memory defaults so newly created
+// frames inherit the synced prefs. Existing frames are left untouched.
+if (typeof window !== "undefined") {
+  window.addEventListener("ss-settings-synced", () => {
+    const fresh = loadPrefs();
+    prefs.overlay = fresh.overlay;
+    prefs.targetWidth = fresh.targetWidth;
+    prefs.targetHeight = fresh.targetHeight;
+  });
+}
+
 type Store = Project & {
   addLayer: () => void;
   removeLayer: (id: string) => void;

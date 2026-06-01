@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AiProvider } from "../utils/ai";
+import { SETTINGS_SYNCED_EVENT } from "../auth/cloudSync";
 import { getApiKey, setApiKey, clearApiKey } from "../utils/aiKey";
 
 type Props = {
@@ -10,6 +11,13 @@ type Props = {
 
 export function ApiKeyModal({ provider, onClose, onSaved }: Props) {
   const [value, setValue] = useState(getApiKey(provider.id));
+
+  // If a cloud pull lands while the modal is open, reflect the synced key.
+  useEffect(() => {
+    const onSync = () => setValue(getApiKey(provider.id));
+    window.addEventListener(SETTINGS_SYNCED_EVENT, onSync);
+    return () => window.removeEventListener(SETTINGS_SYNCED_EVENT, onSync);
+  }, [provider.id]);
 
   const save = () => {
     const k = value.trim();

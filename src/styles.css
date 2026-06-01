@@ -1058,6 +1058,51 @@ body, html, #root {
   gap: 8px;
 }
 
+/* ───────── Auth ───────── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-email {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-google {
+  justify-content: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-notice {
+  color: var(--accent);
+}
+
 .toggle-row {
   display: flex;
   align-items: center;
