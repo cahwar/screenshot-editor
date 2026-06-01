@@ -14,14 +14,34 @@ export type AiProvider = {
   keyPlaceholder: string;
   /** Default model id (user can override in the UI). */
   defaultModel: string;
+  /** Whether this provider can take extra reference images. */
+  supportsReferences: boolean;
   /** Edit an image by instruction. Returns a data URL. Throws on failure. */
-  editImage: (
-    imageDataUrl: string,
-    prompt: string,
-    apiKey: string,
-    model: string
-  ) => Promise<string>;
+  editImage: (opts: EditImageOptions) => Promise<string>;
 };
+
+export type EditImageOptions = {
+  /** The base image to edit (data URL). */
+  imageDataUrl: string;
+  prompt: string;
+  apiKey: string;
+  model: string;
+  /** Extra reference images (data URLs) the model should draw inspiration from. */
+  references?: string[];
+};
+
+/** Append guidance so the model knows the first image is the canvas and the
+ *  rest are references, not things to paste verbatim. */
+function withReferenceGuidance(prompt: string, refCount: number): string {
+  if (refCount <= 0) return prompt;
+  return (
+    prompt +
+    `\n\n[Контекст: первое изображение — исходный кадр, который нужно отредактировать. ` +
+    `Следующие ${refCount} изображени${refCount === 1 ? "е" : "я"} — референсы ` +
+    `(объекты/стиль/позы для ориентира). Используй их как образец, но не вставляй ` +
+    `их в кадр буквально — органично впиши в сцену по запросу.]`
+  );
+}
 
 // ───────── helpers ─────────
 
@@ -43,18 +63,27 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 // ───────── Gemini 2.5 Flash Image ("Nano Banana") ─────────
 
-async function editImageWithGemini(
-  imageDataUrl: string,
-  prompt: string,
-  apiKey: string,
-  model: string
-): Promise<string> {
-  const { mimeType, data } = splitDataUrl(imageDataUrl);
+async function editImageWithGemini({
+  imageDataUrl,
+  prompt,
+  apiKey,
+  model,
+  references = [],
+}: EditImageOptions): Promise<string> {
+  const base = splitDataUrl(imageDataUrl);
+  const refParts = references.map((r) => {
+    const { mimeType, data } = splitDataUrl(r);
+    return { inline_data: { mime_type: mimeType, data } };
+  });
   const body = {
     contents: [
       {
         role: "user",
-        parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data } }],
+        parts: [
+          { text: withReferenceGuidance(prompt, references.length) },
+          { inline_data: { mime_type: base.mimeType, data: base.data } },
+          ...refParts,
+        ],
       },
     ],
     generationConfig: { responseModalities: ["IMAGE"] },
@@ -107,20 +136,26 @@ async function editImageWithGemini(
 
 // ───────── OpenAI image models (gpt-image-*) ─────────
 
-async function editImageWithOpenAI(
-  imageDataUrl: string,
-  prompt: string,
-  apiKey: string,
-  model: string
-): Promise<string> {
-  const blob = dataUrlToBlob(imageDataUrl);
+async function editImageWithOpenAI({
+  imageDataUrl,
+  prompt,
+  apiKey,
+  model,
+  references = [],
+}: EditImageOptions): Promise<string> {
   const form = new FormData();
   form.append("model", model);
-  form.append(
-    "image",
-    new File([blob], "image.png", { type: blob.type || "image/png" })
-  );
-  form.append("prompt", prompt);
+  // First image[] entry is the canvas; the rest are references. gpt-image-*
+  // edits endpoint accepts multiple images as image[].
+  const all = [imageDataUrl, ...references];
+  all.forEach((url, i) => {
+    const blob = dataUrlToBlob(url);
+    form.append(
+      "image[]",
+      new File([blob], `image-${i}.png`, { type: blob.type || "image/png" })
+    );
+  });
+  form.append("prompt", withReferenceGuidance(prompt, references.length));
   form.append("size", "auto");
 
   let res: Response;
@@ -163,6 +198,7 @@ export const PROVIDERS: Record<ProviderId, AiProvider> = {
     keyUrl: "https://aistudio.google.com/apikey",
     keyPlaceholder: "AIza…",
     defaultModel: "gemini-2.5-flash-image",
+    supportsReferences: true,
     editImage: editImageWithGemini,
   },
   openai: {
@@ -172,6 +208,7 @@ export const PROVIDERS: Record<ProviderId, AiProvider> = {
     keyUrl: "https://platform.openai.com/api-keys",
     keyPlaceholder: "sk-…",
     defaultModel: "gpt-image-2",
+    supportsReferences: true,
     editImage: editImageWithOpenAI,
   },
 };

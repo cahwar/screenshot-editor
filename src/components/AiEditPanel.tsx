@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layer } from "../types";
 import { useProject } from "../store";
 import { SETTINGS_SYNCED_EVENT } from "../auth/cloudSync";
@@ -11,8 +11,12 @@ import {
   setActiveProvider,
   setModelOverride,
 } from "../utils/aiKey";
-import { loadImage } from "../utils/image";
+import { loadImage, readFileAsDataURL } from "../utils/image";
 import { ApiKeyModal } from "./ApiKeyModal";
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+type Reference = { id: string; src: string };
 
 const SUGGESTIONS = [
   "Вложи дробовик в руки персонажа",
@@ -32,9 +36,11 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
       getProvider(getActiveProvider()).defaultModel
   );
   const [prompt, setPrompt] = useState("");
+  const [references, setReferences] = useState<Reference[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
+  const refInputRef = useRef<HTMLInputElement>(null);
 
   // Re-read provider/model after a cloud pull (sign-in synced new values).
   useEffect(() => {
@@ -63,6 +69,31 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
     setModelOverride(providerId, value);
   };
 
+  const addReferenceFiles = async (files: File[]) => {
+    const imgs = files.filter((f) => f.type.startsWith("image/"));
+    if (!imgs.length) return;
+    const loaded = await Promise.all(imgs.map((f) => readFileAsDataURL(f)));
+    setReferences((prev) => [
+      ...prev,
+      ...loaded.map((src) => ({ id: uid(), src })),
+    ]);
+  };
+
+  const onPaste = (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    const files = items
+      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+      .map((it) => it.getAsFile())
+      .filter((f): f is File => !!f);
+    if (files.length) {
+      e.preventDefault();
+      addReferenceFiles(files);
+    }
+  };
+
+  const removeReference = (id: string) =>
+    setReferences((prev) => prev.filter((r) => r.id !== id));
+
   const run = async () => {
     const text = prompt.trim();
     if (!text) return;
@@ -73,12 +104,13 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
     setBusy(true);
     setError(null);
     try {
-      const dataUrl = await provider.editImage(
-        bg.src,
-        text,
-        getApiKey(providerId),
-        (model.trim() || provider.defaultModel)
-      );
+      const dataUrl = await provider.editImage({
+        imageDataUrl: bg.src,
+        prompt: text,
+        apiKey: getApiKey(providerId),
+        model: model.trim() || provider.defaultModel,
+        references: references.map((r) => r.src),
+      });
       const img = await loadImage(dataUrl);
       replaceBackgroundImage(layer.id, {
         src: dataUrl,
@@ -136,6 +168,62 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
       </div>
       <p className="hint ai-blurb">{provider.blurb}</p>
 
+      {provider.supportsReferences && (
+        <div className="ai-refs">
+          <div className="ai-refs-head">
+            <span className="ai-provider-label">Референсы</span>
+            <button
+              className="ai-ref-add-btn"
+              disabled={busy}
+              onClick={() => refInputRef.current?.click()}
+            >
+              + приложить
+            </button>
+            <input
+              ref={refInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files)
+                  addReferenceFiles(Array.from(e.target.files));
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          <div
+            className="ai-refs-grid"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              addReferenceFiles(Array.from(e.dataTransfer.files));
+            }}
+          >
+            {references.map((r) => (
+              <div key={r.id} className="ai-ref-thumb">
+                <img src={r.src} alt="" />
+                <button
+                  className="ai-ref-del"
+                  onClick={() => removeReference(r.id)}
+                  title="Убрать референс"
+                  disabled={busy}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {references.length === 0 && (
+              <div className="ai-refs-empty">
+                Перетащи, вставь (Ctrl/⌘+V) или приложи картинки-образцы —
+                модель будет на них ориентироваться
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <textarea
         className="ai-prompt"
         placeholder="Опиши правку: смени позу, вложи объект в руки, поменяй фон…"
@@ -143,6 +231,7 @@ export function AiEditPanel({ layer }: { layer: Layer }) {
         rows={2}
         disabled={busy}
         onChange={(e) => setPrompt(e.target.value)}
+        onPaste={onPaste}
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") run();
         }}
