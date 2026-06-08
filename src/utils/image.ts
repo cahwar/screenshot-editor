@@ -47,7 +47,8 @@ export function extractTextRegion(
   img: HTMLImageElement,
   rect: Rect,
   blackThreshold: number,
-  edgeSoftness: number
+  edgeSoftness: number,
+  cutBg = true
 ): HTMLCanvasElement {
   const w = Math.max(1, Math.round(rect.w));
   const h = Math.max(1, Math.round(rect.h));
@@ -56,6 +57,9 @@ export function extractTextRegion(
   c.height = h;
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, w, h);
+
+  // Cutting disabled: keep the region exactly as captured (background included).
+  if (!cutBg) return c;
 
   const data = ctx.getImageData(0, 0, w, h);
   const d = data.data;
@@ -203,7 +207,8 @@ export async function buildTextOverlay(
           img,
           r.rect,
           layer.overlay.blackThreshold,
-          layer.overlay.edgeSoftness
+          layer.overlay.edgeSoftness,
+          layer.overlay.cutTextBg
         )
       );
     }

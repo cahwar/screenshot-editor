@@ -93,6 +93,7 @@ export function CompositionPanel({ layer }: { layer: Layer }) {
         stroke: layer.overlay.strokeColor,
         sw: layer.overlay.strokeWidth,
         gap: layer.overlay.lineGap,
+        cut: layer.overlay.cutTextBg,
         bt: layer.overlay.blackThreshold,
         es: layer.overlay.edgeSoftness,
         swTE: layer.overlay.swTextEnabled,
@@ -103,6 +104,7 @@ export function CompositionPanel({ layer }: { layer: Layer }) {
       layer.overlay.strokeColor,
       layer.overlay.strokeWidth,
       layer.overlay.lineGap,
+      layer.overlay.cutTextBg,
       layer.overlay.blackThreshold,
       layer.overlay.edgeSoftness,
       layer.overlay.swTextEnabled,
@@ -338,41 +340,62 @@ export function CompositionPanel({ layer }: { layer: Layer }) {
             />
           </div>
 
-          <div className="field">
-            <label>
-              Порог чёрного: {layer.overlay.blackThreshold}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="180"
-              step="1"
-              value={layer.overlay.blackThreshold}
-              onChange={(e) =>
-                patchOverlay(layer.id, {
-                  blackThreshold: parseInt(e.target.value),
-                })
-              }
-            />
-          </div>
+          <label className="toggle-row">
+            <span className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={layer.overlay.cutTextBg}
+                onChange={(e) =>
+                  patchOverlay(layer.id, {
+                    cutTextBg: e.target.checked,
+                  })
+                }
+              />
+              <span className="toggle-slider" />
+            </span>
+            <span>Вырезать чёрный фон текста</span>
+          </label>
+          <p className="hint" style={{ margin: "2px 0 0" }}>
+            {layer.overlay.cutTextBg
+              ? "Чёрный фон под текстом ищется и удаляется."
+              : "Текст вставляется как есть, вместе с фоном."}
+          </p>
 
-          <div className="field">
-            <label>
-              Мягкость края: {layer.overlay.edgeSoftness}
-            </label>
-            <input
-              type="range"
-              min="1"
-              max="120"
-              step="1"
-              value={layer.overlay.edgeSoftness}
-              onChange={(e) =>
-                patchOverlay(layer.id, {
-                  edgeSoftness: parseInt(e.target.value),
-                })
-              }
-            />
-          </div>
+          {layer.overlay.cutTextBg && (
+            <>
+              <div className="field">
+                <label>Порог чёрного: {layer.overlay.blackThreshold}</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="180"
+                  step="1"
+                  value={layer.overlay.blackThreshold}
+                  onChange={(e) =>
+                    patchOverlay(layer.id, {
+                      blackThreshold: parseInt(e.target.value),
+                    })
+                  }
+                />
+              </div>
+
+              <div className="field">
+                <label>Мягкость края: {layer.overlay.edgeSoftness}</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="120"
+                  step="1"
+                  value={layer.overlay.edgeSoftness}
+                  onChange={(e) =>
+                    patchOverlay(layer.id, {
+                      edgeSoftness: parseInt(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </>
+          )}
 
           <div className="sw-block">
             <div className="sw-block-title">SW Style — шакалит</div>

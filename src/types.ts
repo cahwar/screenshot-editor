@@ -29,6 +29,7 @@ export type TextOverlaySettings = {
   strokeColor: string;
   strokeWidth: number;
   lineGap: number;
+  cutTextBg: boolean;
   blackThreshold: number;
   edgeSoftness: number;
   swTextEnabled: boolean;
@@ -64,6 +65,7 @@ export const DEFAULT_OVERLAY: TextOverlaySettings = {
   strokeColor: "#000000",
   strokeWidth: 2,
   lineGap: 2,
+  cutTextBg: true,
   blackThreshold: 60,
   edgeSoftness: 24,
   swTextEnabled: false,
