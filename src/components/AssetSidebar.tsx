@@ -67,7 +67,10 @@ export function AssetSidebar({ layer }: { layer: Layer }) {
         />
       ))}
 
-      <label className="asset-add-btn">
+      <label
+        className="asset-add-btn"
+        title="Загрузи, перетащи или вставь (Ctrl/⌘+V)"
+      >
         + Добавить текст
         <input
           type="file"

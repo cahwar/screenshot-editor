@@ -130,7 +130,7 @@ export function BackgroundEditor({ layer }: { layer: Layer }) {
 
       {!layer.background ? (
         <FileDrop
-          label="Перетащи или выбери фоновый скриншот персонажа"
+          label="Перетащи, вставь (Ctrl/⌘+V) или выбери фоновый скриншот персонажа"
           onFiles={handleBgFiles}
         />
       ) : (

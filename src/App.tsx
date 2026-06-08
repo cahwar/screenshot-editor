@@ -5,11 +5,14 @@ import { AssetSidebar } from "./components/AssetSidebar";
 import { AssetEditor } from "./components/AssetEditor";
 import { exportProjectZip, downloadBlob } from "./utils/export";
 import { AuthButton } from "./components/AuthButton";
+import { usePasteImages } from "./utils/usePasteImages";
 
 export function App() {
   const layers = useProject((s) => s.layers);
   const activeLayer = useActiveLayer();
   const [exporting, setExporting] = useState(false);
+
+  usePasteImages();
 
   const canExport = layers.some((l) => l.background);
 
