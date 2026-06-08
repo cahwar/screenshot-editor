@@ -244,7 +244,7 @@ function CompAssetItem({
     tw: layer.targetWidth,
     th: layer.targetHeight,
     sc: layer.textScreens.map((s) => ({
-      r: s.regions.map((r) => ({ ...r.rect, o: r.order })),
+      r: s.regions.map((r) => ({ rects: r.rects, o: r.order })),
     })),
     o: layer.overlay,
   });

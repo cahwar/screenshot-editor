@@ -70,13 +70,31 @@ type Store = Project & {
   removeTextScreen: (layerId: string, screenId: string) => void;
   renameTextScreen: (layerId: string, screenId: string, name: string) => void;
   selectTextScreen: (layerId: string, screenId: string | null) => void;
-  addRegion: (layerId: string, screenId: string, rect: Rect) => void;
-  removeRegion: (layerId: string, screenId: string, regionId: string) => void;
-  updateRegion: (
+  addRegion: (
+    layerId: string,
+    screenId: string,
+    rect: Rect,
+    id?: string
+  ) => void;
+  appendRect: (
     layerId: string,
     screenId: string,
     regionId: string,
     rect: Rect
+  ) => void;
+  removeRegion: (layerId: string, screenId: string, regionId: string) => void;
+  updateRegionRect: (
+    layerId: string,
+    screenId: string,
+    regionId: string,
+    index: number,
+    rect: Rect
+  ) => void;
+  removeRegionRect: (
+    layerId: string,
+    screenId: string,
+    regionId: string,
+    index: number
   ) => void;
   reorderRegions: (
     layerId: string,
@@ -261,7 +279,7 @@ export const useProject = create<Store>((set) => ({
       ),
     })),
 
-  addRegion: (layerId, screenId, rect) =>
+  addRegion: (layerId, screenId, rect, id) =>
     set((s) => ({
       layers: s.layers.map((l) => {
         if (l.id !== layerId) return l;
@@ -274,11 +292,30 @@ export const useProject = create<Store>((set) => ({
               -1
             );
             const region: TextRegion = {
-              id: uid(),
-              rect,
+              id: id ?? uid(),
+              rects: [rect],
               order: maxOrder + 1,
             };
             return { ...sc, regions: [...sc.regions, region] };
+          }),
+        };
+      }),
+    })),
+
+  appendRect: (layerId, screenId, regionId, rect) =>
+    set((s) => ({
+      layers: s.layers.map((l) => {
+        if (l.id !== layerId) return l;
+        return {
+          ...l,
+          textScreens: l.textScreens.map((sc) => {
+            if (sc.id !== screenId) return sc;
+            return {
+              ...sc,
+              regions: sc.regions.map((r) =>
+                r.id === regionId ? { ...r, rects: [...r.rects, rect] } : r
+              ),
+            };
           }),
         };
       }),
@@ -301,7 +338,7 @@ export const useProject = create<Store>((set) => ({
       }),
     })),
 
-  updateRegion: (layerId, screenId, regionId, rect) =>
+  updateRegionRect: (layerId, screenId, regionId, index, rect) =>
     set((s) => ({
       layers: s.layers.map((l) => {
         if (l.id !== layerId) return l;
@@ -312,8 +349,34 @@ export const useProject = create<Store>((set) => ({
             return {
               ...sc,
               regions: sc.regions.map((r) =>
-                r.id === regionId ? { ...r, rect } : r
+                r.id === regionId
+                  ? {
+                      ...r,
+                      rects: r.rects.map((rc, i) => (i === index ? rect : rc)),
+                    }
+                  : r
               ),
+            };
+          }),
+        };
+      }),
+    })),
+
+  removeRegionRect: (layerId, screenId, regionId, index) =>
+    set((s) => ({
+      layers: s.layers.map((l) => {
+        if (l.id !== layerId) return l;
+        return {
+          ...l,
+          textScreens: l.textScreens.map((sc) => {
+            if (sc.id !== screenId) return sc;
+            return {
+              ...sc,
+              regions: sc.regions.flatMap((r) => {
+                if (r.id !== regionId) return [r];
+                const rects = r.rects.filter((_, i) => i !== index);
+                return rects.length ? [{ ...r, rects }] : [];
+              }),
             };
           }),
         };

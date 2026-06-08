@@ -12,8 +12,10 @@ export function TextEditor({
   const reorderRegions = useProject((s) => s.reorderRegions);
 
   const sortByY = () => {
+    const topY = (r: (typeof screen.regions)[number]) =>
+      Math.min(...r.rects.map((rc) => rc.y));
     const ordered = [...screen.regions]
-      .sort((a, b) => a.rect.y - b.rect.y)
+      .sort((a, b) => topY(a) - topY(b))
       .map((r) => r.id);
     reorderRegions(layer.id, screen.id, ordered);
   };

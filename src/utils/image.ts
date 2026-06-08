@@ -45,18 +45,27 @@ export function cropAndScaleBackground(
 
 export function extractTextRegion(
   img: HTMLImageElement,
-  rect: Rect,
+  rects: Rect[],
   blackThreshold: number,
   edgeSoftness: number,
   cutBg = true
 ): HTMLCanvasElement {
-  const w = Math.max(1, Math.round(rect.w));
-  const h = Math.max(1, Math.round(rect.h));
+  const parts = rects.length ? rects : [{ x: 0, y: 0, w: 1, h: 1 }];
+  // Union bounding box of all parts — the composite chunk's canvas.
+  const minX = Math.min(...parts.map((r) => r.x));
+  const minY = Math.min(...parts.map((r) => r.y));
+  const maxX = Math.max(...parts.map((r) => r.x + r.w));
+  const maxY = Math.max(...parts.map((r) => r.y + r.h));
+  const w = Math.max(1, Math.round(maxX - minX));
+  const h = Math.max(1, Math.round(maxY - minY));
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;
   const ctx = c.getContext("2d")!;
-  ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, w, h);
+  // Draw each part at its position relative to the bbox; gaps stay transparent.
+  for (const r of parts) {
+    ctx.drawImage(img, r.x, r.y, r.w, r.h, r.x - minX, r.y - minY, r.w, r.h);
+  }
 
   // Cutting disabled: keep the region exactly as captured (background included).
   if (!cutBg) return c;
@@ -205,7 +214,7 @@ export async function buildTextOverlay(
       pieces.push(
         extractTextRegion(
           img,
-          r.rect,
+          r.rects,
           layer.overlay.blackThreshold,
           layer.overlay.edgeSoftness,
           layer.overlay.cutTextBg
@@ -321,6 +330,6 @@ export function shakalOverlay(
 
 export function flatRegionsForScreen(
   screen: TextScreen
-): { id: string; rect: Rect; order: number }[] {
+): { id: string; rects: Rect[]; order: number }[] {
   return [...screen.regions].sort((a, b) => a.order - b.order);
 }

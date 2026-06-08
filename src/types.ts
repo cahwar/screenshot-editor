@@ -2,7 +2,9 @@ export type Rect = { x: number; y: number; w: number; h: number };
 
 export type TextRegion = {
   id: string;
-  rect: Rect;
+  /** One or more rectangles forming a single composition chunk.
+   *  Single-select mode produces one rect; composite mode layers several. */
+  rects: Rect[];
   order: number;
 };
 

@@ -381,6 +381,70 @@ body, html, #root {
   pointer-events: none;
 }
 
+/* Composite chunk parts share a calmer look; the active target stands out. */
+.region-box.composite {
+  border-color: #6fb6ff;
+  background: rgba(111, 182, 255, 0.16);
+}
+
+.region-box.target {
+  border-color: #ffcf5f;
+  background: rgba(255, 207, 95, 0.2);
+  box-shadow: 0 0 0 2px rgba(255, 207, 95, 0.35);
+}
+
+.region-box .order-badge {
+  background: #5fdc7a;
+}
+
+.region-box.composite .order-badge,
+.region-box.target .order-badge {
+  background: #ffcf5f;
+}
+
+.region-box .delete.part {
+  width: 16px;
+  height: 16px;
+  top: -8px;
+  right: -8px;
+  font-size: 10px;
+  background: #b06a1f;
+}
+
+.select-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.seg-control {
+  display: inline-flex;
+  border: 1px solid var(--border, #2c3528);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.seg-btn {
+  background: transparent;
+  color: #c8e8ce;
+  border: 0;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seg-btn + .seg-btn {
+  border-left: 1px solid var(--border, #2c3528);
+}
+
+.seg-btn.active {
+  background: #5fdc7a;
+  color: #0e130c;
+  font-weight: 700;
+}
+
 .text-screens-tabs {
   display: flex;
   gap: 6px;
